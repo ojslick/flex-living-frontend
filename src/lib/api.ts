@@ -1,12 +1,11 @@
 import type { ReviewsResponse } from './types';
 
 // Prefer env-provided API base (e.g., Railway) and fall back to dev proxy '/api'
-const RAW_API_BASE: string | undefined = (
+const API_BASE_URL: string | undefined = (
 	import.meta as unknown as {
 		env?: { VITE_API_BASE_URL?: string };
 	}
 ).env?.VITE_API_BASE_URL;
-const API_BASE_URL = String(RAW_API_BASE || '/api').replace(/\/$/, '');
 
 class ApiError extends Error {
 	public status: number;
@@ -37,27 +36,25 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export async function getReviews(
 	channel?: 'hostaway' | 'google'
 ): Promise<ReviewsResponse> {
-	const endpoint = channel
-		? `${API_BASE_URL}/reviews/${channel}`
-		: `${API_BASE_URL}/reviews`;
+	const endpoint = `${API_BASE_URL}/api/reviews/${channel}`;
 	const response = await fetch(endpoint);
 	return handleResponse<ReviewsResponse>(response);
 }
 
 export async function getHostawayReviews(): Promise<ReviewsResponse> {
-	const response = await fetch(`${API_BASE_URL}/reviews/hostaway`);
+	const response = await fetch(`${API_BASE_URL}/api/reviews/hostaway`);
 	return handleResponse<ReviewsResponse>(response);
 }
 
 export async function getGoogleReviews(): Promise<ReviewsResponse> {
-	const response = await fetch(`${API_BASE_URL}/reviews/google`);
+	const response = await fetch(`${API_BASE_URL}/api/reviews/google`);
 	return handleResponse<ReviewsResponse>(response);
 }
 
 export async function toggleApprove(
 	id: string
 ): Promise<{ id: string; managerApproved: boolean }> {
-	const response = await fetch(`${API_BASE_URL}/reviews/${id}/approve`, {
+	const response = await fetch(`${API_BASE_URL}/api/reviews/${id}/approve`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
@@ -69,6 +66,6 @@ export async function toggleApprove(
 export async function getApprovals(): Promise<{
 	approvals: Record<string, boolean>;
 }> {
-	const response = await fetch(`${API_BASE_URL}/reviews/approvals`);
+	const response = await fetch(`${API_BASE_URL}/api/reviews/approvals`);
 	return handleResponse<{ approvals: Record<string, boolean> }>(response);
 }
