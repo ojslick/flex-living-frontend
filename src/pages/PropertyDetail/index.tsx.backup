@@ -1,0 +1,975 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useLocation } from 'react-router-dom';
+import styled from 'styled-components';
+import { getReviews } from '../../lib/api';
+import type { ReviewsResponse } from '../../lib/types';
+import { formatDate, formatRating, formatCategoryName } from '../../lib/format';
+import Badge from '../../components/ui/Badge';
+import {
+	getPropertyDetails,
+	type PropertyDetails,
+} from '../../lib/propertyData';
+
+// Flex Living color theme - extracted from the cloned website
+const FlexLivingTheme = {
+	colors: {
+		background: '#FFFDF6', // Warm cream background from Flex Living
+		primary: '#284E4C', // Dark teal primary color
+		secondary: '#5C5C5A', // Muted gray
+		accent: '#FFF9E9', // Light cream accent
+		border: 'rgba(92, 92, 90, 0.2)', // 20% opacity border
+		surface: '#FFFFFF',
+		text: '#284E4C',
+		textLight: '#5C5C5A',
+	},
+	spacing: {
+		1: '0.25rem',
+		2: '0.5rem',
+		3: '0.75rem',
+		4: '1rem',
+		5: '1.25rem',
+		6: '1.5rem',
+		8: '2rem',
+		10: '2.5rem',
+		12: '3rem',
+		16: '4rem',
+	},
+	radii: {
+		sm: '0.25rem',
+		md: '0.5rem',
+		lg: '0.75rem',
+		xl: '1rem',
+	},
+	fontSizes: {
+		xs: '0.75rem',
+		sm: '0.875rem',
+		base: '1rem',
+		lg: '1.125rem',
+		xl: '1.25rem',
+		'2xl': '1.5rem',
+		'3xl': '1.875rem',
+		'4xl': '2.25rem',
+	},
+	fontWeights: {
+		normal: '400',
+		medium: '500',
+		semibold: '600',
+		bold: '700',
+	},
+};
+
+const PropertyContainer = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${FlexLivingTheme.spacing[8]};
+	max-width: 100%;
+	margin: 0 auto;
+	background-color: ${FlexLivingTheme.colors.background};
+	min-height: 100vh;
+	padding-top: 10px;
+`;
+
+const ImageGrid = styled.div`
+	display: flex;
+	gap: ${FlexLivingTheme.spacing[3]};
+`;
+
+const LargeImageSquare = styled.div`
+	width: 616px;
+	height: 600px;
+	background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+	border-radius: ${FlexLivingTheme.radii.lg};
+	border: 2px solid ${FlexLivingTheme.colors.border};
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: ${FlexLivingTheme.fontSizes['2xl']};
+	color: ${FlexLivingTheme.colors.textLight};
+	transition: all 0.2s ease;
+
+	&:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+		border-color: ${FlexLivingTheme.colors.primary};
+	}
+`;
+
+const SmallImageGrid = styled.div`
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: ${FlexLivingTheme.spacing[3]};
+	width: 300px;
+	height: 600px;
+`;
+
+const SmallImageSquare = styled.div`
+	aspect-ratio: 1;
+	background: linear-gradient(135deg, #f0f0f0 0%, #e0e0e0 100%);
+	border-radius: ${FlexLivingTheme.radii.lg};
+	border: 2px solid ${FlexLivingTheme.colors.border};
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: ${FlexLivingTheme.fontSizes.xl};
+	color: ${FlexLivingTheme.colors.textLight};
+	transition: all 0.2s ease;
+
+	&:hover {
+		transform: translateY(-2px);
+		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+		border-color: ${FlexLivingTheme.colors.primary};
+	}
+`;
+
+const PropertyTitleSection = styled.div`
+	width: 100%;
+	margin-bottom: ${FlexLivingTheme.spacing[6]};
+`;
+
+const PropertyMainTitle = styled.h1`
+	font-size: ${FlexLivingTheme.fontSizes['3xl']};
+	font-weight: ${FlexLivingTheme.fontWeights.bold};
+	color: ${FlexLivingTheme.colors.text};
+	margin: 0 0 ${FlexLivingTheme.spacing[4]} 0;
+`;
+
+const PropertyDetailsRow = styled.div`
+	display: flex;
+	align-items: center;
+	gap: ${FlexLivingTheme.spacing[6]};
+	padding-bottom: ${FlexLivingTheme.spacing[4]};
+	border-bottom: 1px solid ${FlexLivingTheme.colors.border};
+`;
+
+const PropertyDetailInfoItem = styled.div`
+	display: flex;
+	align-items: center;
+	gap: ${FlexLivingTheme.spacing[2]};
+	font-size: ${FlexLivingTheme.fontSizes.base};
+	color: ${FlexLivingTheme.colors.text};
+`;
+
+const DetailIcon = styled.span`
+	font-size: ${FlexLivingTheme.fontSizes.lg};
+	color: ${FlexLivingTheme.colors.textLight};
+`;
+
+const PropertyInfo = styled.div`
+	display: grid;
+	grid-template-columns: 2fr 1fr;
+	gap: ${FlexLivingTheme.spacing[8]};
+	max-width: 1400px;
+	margin: 0 auto;
+
+	@media (max-width: 1024px) {
+		grid-template-columns: 1fr;
+		gap: ${FlexLivingTheme.spacing[6]};
+	}
+`;
+
+const MainContent = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${FlexLivingTheme.spacing[6]};
+`;
+
+const AmenitiesSection = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${FlexLivingTheme.spacing[4]};
+	padding: ${FlexLivingTheme.spacing[6]};
+	background: ${FlexLivingTheme.colors.surface};
+	border: 1px solid ${FlexLivingTheme.colors.border};
+	border-radius: ${FlexLivingTheme.radii.lg};
+`;
+
+const SectionTitle = styled.h3`
+	font-size: ${FlexLivingTheme.fontSizes.xl};
+	font-weight: ${FlexLivingTheme.fontWeights.semibold};
+	color: ${FlexLivingTheme.colors.text};
+	margin: 0;
+	margin-bottom: ${FlexLivingTheme.spacing[4]};
+`;
+
+const AmenitiesGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: ${FlexLivingTheme.spacing[4]};
+`;
+
+const AmenityItem = styled.div`
+	display: flex;
+	align-items: center;
+	gap: ${FlexLivingTheme.spacing[2]};
+	padding: ${FlexLivingTheme.spacing[3]};
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+`;
+
+const AmenityIcon = styled.span`
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+`;
+
+const AmenityText = styled.span`
+	font-weight: ${FlexLivingTheme.fontWeights.medium};
+`;
+
+const AmenitiesHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: ${FlexLivingTheme.spacing[4]};
+`;
+
+const ViewAllButton = styled.button`
+	background: none;
+	border: none;
+	color: ${FlexLivingTheme.colors.primary};
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+	font-weight: ${FlexLivingTheme.fontWeights.medium};
+	cursor: pointer;
+	text-decoration: underline;
+	transition: color 0.2s ease;
+
+	&:hover {
+		color: ${FlexLivingTheme.colors.accent};
+	}
+`;
+
+const ReadMoreButton = styled.button`
+	background: none;
+	border: none;
+	color: ${FlexLivingTheme.colors.primary};
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+	font-weight: ${FlexLivingTheme.fontWeights.medium};
+	cursor: pointer;
+	display: inline;
+	padding: 0;
+	margin: 0;
+`;
+
+const ShowLessButton = styled.button`
+	background: none;
+	border: none;
+	color: ${FlexLivingTheme.colors.primary};
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+	font-weight: ${FlexLivingTheme.fontWeights.medium};
+	cursor: pointer;
+	display: inline-block;
+	padding: 0;
+	margin: 0;
+	width: auto;
+	text-align: left;
+`;
+
+const StayPoliciesSection = styled.div`
+	padding: ${FlexLivingTheme.spacing[6]};
+	background: ${FlexLivingTheme.colors.surface};
+	border: 1px solid ${FlexLivingTheme.colors.border};
+	border-radius: ${FlexLivingTheme.radii.lg};
+`;
+
+const PolicySection = styled.div`
+	margin-bottom: ${FlexLivingTheme.spacing[4]};
+	background: rgb(241, 243, 238);
+	padding: ${FlexLivingTheme.spacing[4]};
+	border-radius: ${FlexLivingTheme.radii.md};
+
+	&:last-child {
+		margin-bottom: 0;
+	}
+`;
+
+const PolicyGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: ${FlexLivingTheme.spacing[2]};
+`;
+
+const PolicySubtitle = styled.h4`
+	font-size: ${FlexLivingTheme.fontSizes.lg};
+	font-weight: ${FlexLivingTheme.fontWeights.semibold};
+	color: ${FlexLivingTheme.colors.text};
+	margin-bottom: ${FlexLivingTheme.spacing[3]};
+	display: flex;
+	align-items: center;
+	gap: ${FlexLivingTheme.spacing[2]};
+`;
+
+const PolicyItem = styled.div`
+	display: flex;
+	flex-direction: column;
+	padding: ${FlexLivingTheme.spacing[3]};
+	background: #fff;
+	border-radius: ${FlexLivingTheme.radii.sm};
+	margin-bottom: ${FlexLivingTheme.spacing[2]};
+`;
+
+const PolicyLabel = styled.span`
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+	font-weight: ${FlexLivingTheme.fontWeights.medium};
+	color: ${FlexLivingTheme.colors.textLight};
+	margin-bottom: ${FlexLivingTheme.spacing[1]};
+`;
+
+const PolicyValue = styled.span`
+	font-size: ${FlexLivingTheme.fontSizes.base};
+	font-weight: ${FlexLivingTheme.fontWeights.medium};
+	color: ${FlexLivingTheme.colors.text};
+`;
+
+const DescriptionSection = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${FlexLivingTheme.spacing[4]};
+	padding: ${FlexLivingTheme.spacing[6]};
+	background: ${FlexLivingTheme.colors.surface};
+	border: 1px solid ${FlexLivingTheme.colors.border};
+	border-radius: ${FlexLivingTheme.radii.lg};
+`;
+
+const DescriptionText = styled.p<{ $isExpanded?: boolean }>`
+	color: ${FlexLivingTheme.colors.text};
+	line-height: 1.6;
+	margin: 0;
+	display: inline;
+	${({ $isExpanded }) =>
+		!$isExpanded &&
+		`
+		display: -webkit-box;
+		-webkit-line-clamp: 4;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	`}
+`;
+
+const InlineContainer = styled.div`
+	display: inline;
+`;
+
+const Sidebar = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${FlexLivingTheme.spacing[6]};
+`;
+
+const BookingCard = styled.div`
+	position: sticky;
+	top: 90px;
+	display: flex;
+	flex-direction: column;
+	background: ${FlexLivingTheme.colors.surface};
+	border: 1px solid ${FlexLivingTheme.colors.border};
+	border-radius: ${FlexLivingTheme.radii.lg};
+	overflow: hidden;
+	width: 100%;
+	z-index: 100;
+`;
+
+const BookingHeader = styled.div`
+	background: #284e4c;
+	padding: ${FlexLivingTheme.spacing[6]};
+	color: white;
+`;
+
+const BookingTitle = styled.h2`
+	font-size: ${FlexLivingTheme.fontSizes['2xl']};
+	font-weight: ${FlexLivingTheme.fontWeights.bold};
+	margin: 0 0 ${FlexLivingTheme.spacing[2]} 0;
+	color: white;
+`;
+
+const BookingSubtitle = styled.p`
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+	margin: 0;
+	color: rgba(255, 255, 255, 0.9);
+`;
+
+const BookingForm = styled.div`
+	padding: ${FlexLivingTheme.spacing[6]};
+	display: flex;
+	flex-direction: column;
+	gap: ${FlexLivingTheme.spacing[4]};
+`;
+
+const InputRow = styled.div`
+	display: flex;
+	gap: ${FlexLivingTheme.spacing[3]};
+`;
+
+const DateInput = styled.div`
+	display: flex;
+	align-items: center;
+	gap: ${FlexLivingTheme.spacing[2]};
+	padding: ${FlexLivingTheme.spacing[3]};
+	background: #f7fafc;
+	border: 1px solid #e2e8f0;
+	border-radius: ${FlexLivingTheme.radii.md};
+	flex: 1;
+	min-width: 200px;
+`;
+
+const GuestInput = styled.div`
+	display: flex;
+	align-items: center;
+	gap: ${FlexLivingTheme.spacing[2]};
+	padding: ${FlexLivingTheme.spacing[3]};
+	background: #f7fafc;
+	border: 1px solid #e2e8f0;
+	border-radius: ${FlexLivingTheme.radii.md};
+	width: 120px;
+	flex-shrink: 0;
+	position: relative;
+`;
+
+const InputIcon = styled.span`
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+	color: #718096;
+`;
+
+const InputField = styled.input`
+	border: none;
+	background: transparent;
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+	color: ${FlexLivingTheme.colors.text};
+	outline: none;
+	flex: 1;
+
+	&::placeholder {
+		color: #718096;
+	}
+`;
+
+const DropdownIcon = styled.span`
+	font-size: ${FlexLivingTheme.fontSizes.xs};
+	color: #718096;
+	cursor: pointer;
+`;
+
+const ButtonRow = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${FlexLivingTheme.spacing[3]};
+`;
+
+const CheckAvailabilityButton = styled.button`
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: ${FlexLivingTheme.spacing[2]};
+	height: 48px;
+	background: #284e4c;
+	color: white;
+	border: none;
+	border-radius: ${FlexLivingTheme.radii.md};
+	font-size: ${FlexLivingTheme.fontSizes.base};
+	font-weight: ${FlexLivingTheme.fontWeights.medium};
+	cursor: not-allowed;
+	opacity: 0.6;
+	transition: opacity 0.2s ease;
+
+	&:hover {
+		opacity: 0.8;
+	}
+`;
+
+const SendInquiryButton = styled.button`
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: ${FlexLivingTheme.spacing[2]};
+	height: 48px;
+	background: white;
+	color: ${FlexLivingTheme.colors.text};
+	border: 1px solid #e2e8f0;
+	border-radius: ${FlexLivingTheme.radii.md};
+	font-size: ${FlexLivingTheme.fontSizes.base};
+	font-weight: ${FlexLivingTheme.fontWeights.medium};
+	cursor: pointer;
+	transition: all 0.2s ease;
+
+	&:hover {
+		background: #f7fafc;
+		border-color: #cbd5e0;
+	}
+`;
+
+const ButtonIcon = styled.span`
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+`;
+
+const InstantBooking = styled.div`
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: ${FlexLivingTheme.spacing[2]};
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+	color: #718096;
+	margin-top: ${FlexLivingTheme.spacing[2]};
+`;
+
+const ShieldIcon = styled.span`
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+`;
+
+const ReviewsSection = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${FlexLivingTheme.spacing[4]};
+	padding: ${FlexLivingTheme.spacing[6]};
+	background: ${FlexLivingTheme.colors.surface};
+	border: 1px solid ${FlexLivingTheme.colors.border};
+	border-radius: ${FlexLivingTheme.radii.lg};
+`;
+
+const ReviewsHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+`;
+
+const ReviewsList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${FlexLivingTheme.spacing[4]};
+`;
+
+const ReviewItem = styled.div`
+	padding: ${FlexLivingTheme.spacing[4]} 0;
+	border-bottom: 1px solid ${FlexLivingTheme.colors.border};
+
+	&:last-child {
+		border-bottom: none;
+	}
+`;
+
+const ReviewHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: start;
+	margin-bottom: ${FlexLivingTheme.spacing[3]};
+`;
+
+const ReviewMeta = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${FlexLivingTheme.spacing[1]};
+`;
+
+const ReviewGuest = styled.div`
+	font-weight: ${FlexLivingTheme.fontWeights.semibold};
+	color: ${FlexLivingTheme.colors.text};
+`;
+
+const ReviewDate = styled.div`
+	color: ${FlexLivingTheme.colors.textLight};
+	font-size: ${FlexLivingTheme.fontSizes.sm};
+`;
+
+const ReviewRating = styled.div`
+	font-size: ${FlexLivingTheme.fontSizes.lg};
+	font-weight: ${FlexLivingTheme.fontWeights.semibold};
+	color: ${FlexLivingTheme.colors.primary};
+`;
+
+const ReviewText = styled.div`
+	color: ${FlexLivingTheme.colors.text};
+	line-height: 1.5;
+	margin-bottom: ${FlexLivingTheme.spacing[3]};
+`;
+
+const ReviewCategories = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: ${FlexLivingTheme.spacing[2]};
+`;
+
+const LoadingSpinner = styled.div`
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: ${FlexLivingTheme.spacing[8]};
+	color: ${FlexLivingTheme.colors.textLight};
+`;
+
+const ErrorMessage = styled.div`
+	background: #fef2f2;
+	color: #dc2626;
+	padding: ${FlexLivingTheme.spacing[4]};
+	border-radius: ${FlexLivingTheme.radii.md};
+	text-align: center;
+`;
+
+const PropertyDetail: React.FC = () => {
+	const { listingId } = useParams<{ listingId: string }>();
+	const location = useLocation();
+	const reviewsSectionRef = useRef<HTMLDivElement>(null);
+	const [data, setData] = useState<ReviewsResponse | null>(null);
+	const [propertyDetails, setPropertyDetails] =
+		useState<PropertyDetails | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
+
+	useEffect(() => {
+		loadReviews();
+		if (listingId) {
+			setPropertyDetails(getPropertyDetails(listingId));
+		}
+	}, [listingId]);
+
+	// Scroll to reviews section when navigating from dashboard
+	useEffect(() => {
+		if (location.state?.scrollToReviews && reviewsSectionRef.current) {
+			setTimeout(() => {
+				reviewsSectionRef.current?.scrollIntoView({
+					behavior: 'smooth',
+					block: 'start',
+				});
+			}, 100);
+		}
+	}, [location.state, data]);
+
+	const loadReviews = async () => {
+		try {
+			setLoading(true);
+			setError(null);
+			const response = await getReviews();
+			setData(response);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to load reviews');
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	if (loading) {
+		return (
+			<PropertyContainer>
+				<LoadingSpinner>Loading property details...</LoadingSpinner>
+			</PropertyContainer>
+		);
+	}
+
+	if (error) {
+		return (
+			<PropertyContainer>
+				<ErrorMessage>
+					{error}
+					<button
+						onClick={loadReviews}
+						style={{
+							marginTop: '16px',
+							padding: '8px 16px',
+							backgroundColor: FlexLivingTheme.colors.primary,
+							color: 'white',
+							border: 'none',
+							borderRadius: FlexLivingTheme.radii.md,
+							cursor: 'pointer',
+						}}
+					>
+						Retry
+					</button>
+				</ErrorMessage>
+			</PropertyContainer>
+		);
+	}
+
+	if (!data || !propertyDetails) {
+		return <ErrorMessage>No data available</ErrorMessage>;
+	}
+
+	// Get approved reviews for this property
+	const approvedReviews = data.reviews.filter(
+		(review) =>
+			review.managerApproved && (!listingId || review.propertyId === listingId)
+	);
+
+	return (
+		<PropertyContainer>
+			<ImageGrid>
+				<LargeImageSquare></LargeImageSquare>
+				<SmallImageGrid>
+					<SmallImageSquare></SmallImageSquare>
+					<SmallImageSquare></SmallImageSquare>
+					<SmallImageSquare></SmallImageSquare>
+					<SmallImageSquare></SmallImageSquare>
+				</SmallImageGrid>
+			</ImageGrid>
+
+			<PropertyTitleSection>
+				<PropertyMainTitle>{propertyDetails.name}</PropertyMainTitle>
+				<PropertyDetailsRow>
+					<PropertyDetailInfoItem>
+						<DetailIcon>👥</DetailIcon>
+						<span>
+							{propertyDetails.guests} Guest
+							{propertyDetails.guests !== 1 ? 's' : ''}
+						</span>
+					</PropertyDetailInfoItem>
+					<PropertyDetailInfoItem>
+						<DetailIcon>🛏️</DetailIcon>
+						<span>
+							{propertyDetails.bedrooms} Bedroom
+							{propertyDetails.bedrooms !== 1 ? 's' : ''}
+						</span>
+					</PropertyDetailInfoItem>
+					<PropertyDetailInfoItem>
+						<DetailIcon>🛁</DetailIcon>
+						<span>
+							{propertyDetails.bathrooms} Bathroom
+							{propertyDetails.bathrooms !== 1 ? 's' : ''}
+						</span>
+					</PropertyDetailInfoItem>
+					<PropertyDetailInfoItem>
+						<DetailIcon>🏠</DetailIcon>
+						<span>{propertyDetails.bedrooms + 1} beds</span>
+					</PropertyDetailInfoItem>
+				</PropertyDetailsRow>
+			</PropertyTitleSection>
+
+			<div>
+				<PropertyInfo>
+					<MainContent>
+						<DescriptionSection>
+							<SectionTitle>About this property</SectionTitle>
+							<InlineContainer>
+								<DescriptionText $isExpanded={isDescriptionExpanded}>
+									{propertyDetails.description.join(' ')}
+								</DescriptionText>
+								{!isDescriptionExpanded && (
+									<>
+										{'... '}
+										<ReadMoreButton
+											onClick={() => setIsDescriptionExpanded(true)}
+										>
+											Read more
+										</ReadMoreButton>
+									</>
+								)}
+							</InlineContainer>
+							{isDescriptionExpanded && (
+								<ShowLessButton onClick={() => setIsDescriptionExpanded(false)}>
+									Show less
+								</ShowLessButton>
+							)}
+						</DescriptionSection>
+
+						<AmenitiesSection>
+							<AmenitiesHeader>
+								<SectionTitle>Amenities</SectionTitle>
+								<ViewAllButton>View all amenities &gt;</ViewAllButton>
+							</AmenitiesHeader>
+							<AmenitiesGrid>
+								<AmenityItem>
+									<AmenityIcon>🛋️</AmenityIcon>
+									<AmenityText>Cable TV</AmenityText>
+								</AmenityItem>
+								<AmenityItem>
+									<AmenityIcon>🍴</AmenityIcon>
+									<AmenityText>Kitchen</AmenityText>
+								</AmenityItem>
+								<AmenityItem>
+									<AmenityIcon>💨</AmenityIcon>
+									<AmenityText>Hair Dryer</AmenityText>
+								</AmenityItem>
+								<AmenityItem>
+									<AmenityIcon>🌐</AmenityIcon>
+									<AmenityText>Internet</AmenityText>
+								</AmenityItem>
+								<AmenityItem>
+									<AmenityIcon>🌀</AmenityIcon>
+									<AmenityText>Washing Machine</AmenityText>
+								</AmenityItem>
+								<AmenityItem>
+									<AmenityIcon>🌡️</AmenityIcon>
+									<AmenityText>Heating</AmenityText>
+								</AmenityItem>
+								<AmenityItem>
+									<AmenityIcon>📶</AmenityIcon>
+									<AmenityText>Wireless</AmenityText>
+								</AmenityItem>
+								<AmenityItem>
+									<AmenityIcon>🔄</AmenityIcon>
+									<AmenityText>Elevator</AmenityText>
+								</AmenityItem>
+								<AmenityItem>
+									<AmenityIcon>🛡️</AmenityIcon>
+									<AmenityText>Smoke Detector</AmenityText>
+								</AmenityItem>
+							</AmenitiesGrid>
+						</AmenitiesSection>
+
+						<StayPoliciesSection>
+							<SectionTitle>Stay Policies</SectionTitle>
+
+							<PolicySection>
+								<PolicySubtitle>🕐 Check-in & Check-out</PolicySubtitle>
+								<PolicyGrid>
+									<PolicyItem>
+										<PolicyLabel>Check-in Time</PolicyLabel>
+										<PolicyValue>{propertyDetails.checkInTime}</PolicyValue>
+									</PolicyItem>
+									<PolicyItem>
+										<PolicyLabel>Check-out Time</PolicyLabel>
+										<PolicyValue>{propertyDetails.checkOutTime}</PolicyValue>
+									</PolicyItem>
+								</PolicyGrid>
+							</PolicySection>
+
+							<PolicySection>
+								<PolicySubtitle>🛡️ House Rules</PolicySubtitle>
+								<PolicyGrid>
+									<PolicyItem>
+										<PolicyLabel>No smoking</PolicyLabel>
+									</PolicyItem>
+									<PolicyItem>
+										<PolicyLabel>No pets</PolicyLabel>
+									</PolicyItem>
+									<PolicyItem>
+										<PolicyLabel>No parties or events</PolicyLabel>
+									</PolicyItem>
+									<PolicyItem>
+										<PolicyLabel>Security deposit required</PolicyLabel>
+									</PolicyItem>
+								</PolicyGrid>
+							</PolicySection>
+
+							<PolicySection>
+								<PolicySubtitle>📅 Cancellation Policy</PolicySubtitle>
+								<PolicyItem>
+									<PolicyLabel>For stays less than 28 days:</PolicyLabel>
+									<PolicyValue>
+										• Full refund up to 14 days before check-in
+									</PolicyValue>
+									<PolicyValue>
+										• No refund for bookings less than 14 days before check-in
+									</PolicyValue>
+								</PolicyItem>
+								<PolicyItem>
+									<PolicyLabel>For stays of 28 days or more:</PolicyLabel>
+									<PolicyValue>
+										• Full refund up to 30 days before check-in
+									</PolicyValue>
+									<PolicyValue>
+										• No refund for bookings less than 30 days before check-in
+									</PolicyValue>
+								</PolicyItem>
+							</PolicySection>
+						</StayPoliciesSection>
+
+						<ReviewsSection ref={reviewsSectionRef}>
+							<ReviewsHeader>
+								<SectionTitle>What guests are saying</SectionTitle>
+								<Badge variant="success">
+									{approvedReviews.length} review
+									{approvedReviews.length !== 1 ? 's' : ''}
+								</Badge>
+							</ReviewsHeader>
+
+							{approvedReviews.length > 0 ? (
+								<>
+									<div
+										style={{
+											fontSize: '14px',
+											color: '#718096',
+											marginBottom: '16px',
+											fontStyle: 'italic',
+										}}
+									>
+										Only manager-approved reviews are displayed here. Visit the
+										Dashboard to manage all reviews.
+									</div>
+									<ReviewsList>
+										{approvedReviews.map((review) => (
+											<ReviewItem key={review.id}>
+												<ReviewHeader>
+													<ReviewMeta>
+														<ReviewGuest>
+															{review.guestName || 'Anonymous'}
+														</ReviewGuest>
+														<ReviewDate>
+															{formatDate(review.submittedAt)}
+														</ReviewDate>
+													</ReviewMeta>
+													<ReviewRating>
+														{review.rating
+															? `${formatRating(review.rating)} ⭐`
+															: 'No rating'}
+													</ReviewRating>
+												</ReviewHeader>
+
+												{review.text && <ReviewText>{review.text}</ReviewText>}
+
+												{review.categories.length > 0 && (
+													<ReviewCategories>
+														{review.categories.map((category) => (
+															<Badge key={category.category} size="sm">
+																{formatCategoryName(category.category)}:{' '}
+																{category.rating}/5
+															</Badge>
+														))}
+													</ReviewCategories>
+												)}
+											</ReviewItem>
+										))}
+									</ReviewsList>
+								</>
+							) : (
+								<div
+									style={{
+										textAlign: 'center',
+										color: '#718096',
+										padding: '2rem 0',
+									}}
+								>
+									No reviews yet. Be the first to share your experience!
+								</div>
+							)}
+						</ReviewsSection>
+					</MainContent>
+
+					<Sidebar>
+						<BookingCard>
+							<BookingHeader>
+								<BookingTitle>Book Your Stay</BookingTitle>
+								<BookingSubtitle>Select dates to see prices</BookingSubtitle>
+							</BookingHeader>
+
+							<BookingForm>
+								<InputRow>
+									<DateInput>
+										<InputIcon>📅</InputIcon>
+										<InputField placeholder="Select dates" />
+									</DateInput>
+									<GuestInput>
+										<InputIcon>👥</InputIcon>
+										<InputField value="1" readOnly />
+										<DropdownIcon>▼</DropdownIcon>
+									</GuestInput>
+								</InputRow>
+
+								<ButtonRow>
+									<CheckAvailabilityButton disabled>
+										<ButtonIcon>📅</ButtonIcon>
+										Check availability
+									</CheckAvailabilityButton>
+									<SendInquiryButton>
+										<ButtonIcon>💬</ButtonIcon>
+										Send Inquiry
+									</SendInquiryButton>
+								</ButtonRow>
+
+								<InstantBooking>
+									<ShieldIcon>🛡️</ShieldIcon>
+									Instant booking confirmation
+								</InstantBooking>
+							</BookingForm>
+						</BookingCard>
+					</Sidebar>
+				</PropertyInfo>
+			</div>
+		</PropertyContainer>
+	);
+};
+
+export default PropertyDetail;

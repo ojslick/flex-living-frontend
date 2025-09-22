@@ -1,0 +1,822 @@
+import React, { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { useNavigate } from 'react-router-dom';
+import { getReviews, toggleApprove } from '../../lib/api';
+import type {
+	ReviewsResponse,
+	FilterOptions,
+	SortOptions,
+} from '../../lib/types';
+import {
+	filterReviews,
+	sortReviews,
+	getUniqueChannels,
+	getUniqueListings,
+	getCategoryInsights,
+	getMonthlyTrends,
+	getRecurringIssues,
+	getPerformanceAlerts,
+} from '../../lib/filters';
+import {
+	formatDate,
+	formatRating,
+	formatCategoryName,
+	formatChannelName,
+} from '../../lib/format';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import Badge from '../../components/ui/Badge';
+import PerformanceAlerts from '../../components/trends/PerformanceAlerts';
+import CategoryGrid from '../../components/trends/CategoryGrid';
+import TrendTimeline from '../../components/trends/TrendTimeline';
+import RecurringIssues from '../../components/trends/RecurringIssues';
+
+const DashboardContainer = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${({ theme }) => theme.spacing[6]};
+	max-width: 100%;
+	margin: 0 auto;
+`;
+
+const Header = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${({ theme }) => theme.spacing[4]};
+`;
+
+const Title = styled.h1`
+	font-size: ${({ theme }) => theme.fontSizes['3xl']};
+	font-weight: ${({ theme }) => theme.fontWeights.bold};
+	color: ${({ theme }) => theme.colors.text};
+	margin: 0;
+	text-align: center;
+`;
+
+const StatsGrid = styled.div`
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: ${({ theme }) => theme.spacing[4]};
+`;
+
+const StatCard = styled(Card)`
+	text-align: center;
+`;
+
+const StatValue = styled.div`
+	font-size: ${({ theme }) => theme.fontSizes['2xl']};
+	font-weight: ${({ theme }) => theme.fontWeights.bold};
+	color: ${({ theme }) => theme.colors.primary};
+	margin-bottom: ${({ theme }) => theme.spacing[2]};
+`;
+
+const StatLabel = styled.div`
+	color: ${({ theme }) => theme.colors.textLight};
+	font-size: ${({ theme }) => theme.fontSizes.sm};
+`;
+
+const FiltersSection = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: ${({ theme }) => theme.spacing[4]};
+	align-items: end;
+	justify-content: center;
+	max-width: 100%;
+	background: ${({ theme }) => theme.colors.surface};
+	border: 1px solid ${({ theme }) => theme.colors.border};
+	border-radius: ${({ theme }) => theme.radii.lg};
+	padding: ${({ theme }) => theme.spacing[4]};
+	box-shadow: ${({ theme }) => theme.shadows.sm};
+	position: relative;
+	z-index: 1;
+`;
+
+const FilterGroup = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${({ theme }) => theme.spacing[2]};
+	min-width: 150px;
+`;
+
+const FilterLabel = styled.label`
+	font-size: ${({ theme }) => theme.fontSizes.sm};
+	font-weight: ${({ theme }) => theme.fontWeights.medium};
+	color: ${({ theme }) => theme.colors.text};
+`;
+
+const Select = styled.select`
+	padding: ${({ theme }) => theme.spacing[2]} ${({ theme }) => theme.spacing[3]};
+	border: 1px solid ${({ theme }) => theme.colors.border};
+	border-radius: ${({ theme }) => theme.radii.md};
+	background: ${({ theme }) => theme.colors.surface};
+	color: ${({ theme }) => theme.colors.text};
+	font-size: ${({ theme }) => theme.fontSizes.sm};
+
+	&:focus {
+		outline: none;
+		border-color: ${({ theme }) => theme.colors.accent};
+	}
+`;
+
+const ReviewsSection = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${({ theme }) => theme.spacing[4]};
+`;
+
+const ReviewsHeader = styled.div`
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: ${({ theme }) => theme.spacing[4]};
+`;
+
+const ReviewsCount = styled.div`
+	color: ${({ theme }) => theme.colors.textLight};
+	font-size: ${({ theme }) => theme.fontSizes.sm};
+`;
+
+const ReviewsList = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${({ theme }) => theme.spacing[3]};
+`;
+
+const ReviewCard = styled(Card).attrs<{ onClick?: () => void }>(
+	({ onClick }) => ({
+		onClick,
+	})
+)`
+	display: flex;
+	justify-content: space-between;
+	align-items: start;
+	gap: ${({ theme }) => theme.spacing[4]};
+	cursor: pointer;
+	transition: all 0.2s ease-in-out;
+	position: relative;
+
+	&:hover {
+		transform: translateY(-2px);
+		box-shadow: ${({ theme }) => theme.shadows.lg};
+	}
+
+	&::after {
+		content: 'Click to view approved reviews';
+		position: absolute;
+		top: ${({ theme }) => theme.spacing[2]};
+		right: ${({ theme }) => theme.spacing[2]};
+		font-size: ${({ theme }) => theme.fontSizes.xs};
+		color: ${({ theme }) => theme.colors.textMuted};
+		opacity: 0;
+		transition: opacity 0.2s ease-in-out;
+		pointer-events: none;
+	}
+
+	&:hover::after {
+		opacity: 1;
+	}
+`;
+
+const ReviewContent = styled.div`
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: ${({ theme }) => theme.spacing[2]};
+`;
+
+const ReviewHeader = styled.div`
+	display: flex;
+	align-items: center;
+	gap: ${({ theme }) => theme.spacing[3]};
+`;
+
+const ReviewRating = styled.div`
+	font-weight: ${({ theme }) => theme.fontWeights.semibold};
+	color: ${({ theme }) => theme.colors.primary};
+`;
+
+const ReviewMeta = styled.div`
+	display: flex;
+	align-items: center;
+	gap: ${({ theme }) => theme.spacing[2]};
+	font-size: ${({ theme }) => theme.fontSizes.sm};
+	color: ${({ theme }) => theme.colors.textLight};
+`;
+
+const TruncatedText = styled.div<{ $isExpanded: boolean }>`
+	color: ${({ theme }) => theme.colors.text};
+	line-height: ${({ theme }) => theme.lineHeights.relaxed};
+	display: -webkit-box;
+	-webkit-line-clamp: ${({ $isExpanded }) => ($isExpanded ? 'none' : '3')};
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+`;
+
+const ReadMoreButton = styled.button`
+	background: none;
+	border: none;
+	color: ${({ theme }) => theme.colors.primary};
+	font-size: ${({ theme }) => theme.fontSizes.sm};
+	font-weight: ${({ theme }) => theme.fontWeights.medium};
+	cursor: pointer;
+	padding: 0;
+	margin-top: ${({ theme }) => theme.spacing[2]};
+	text-decoration: underline;
+	transition: color 0.2s ease;
+
+	&:hover {
+		color: ${({ theme }) => theme.colors.accent};
+	}
+`;
+
+const ReviewActions = styled.div`
+	display: flex;
+	flex-direction: column;
+	gap: ${({ theme }) => theme.spacing[2]};
+	align-items: end;
+	min-width: 120px;
+`;
+
+const PaginationContainer = styled.div`
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: ${({ theme }) => theme.spacing[2]};
+	margin-top: ${({ theme }) => theme.spacing[6]};
+	padding: ${({ theme }) => theme.spacing[4]};
+`;
+
+const PaginationButton = styled(Button)<{ $active?: boolean }>`
+	min-width: 40px;
+	height: 40px;
+	padding: 0;
+
+	${({ $active, theme }) =>
+		$active &&
+		`
+		background: ${theme.colors.primary};
+		color: white;
+		border-color: ${theme.colors.primary};
+		
+		&:hover {
+			background: ${theme.colors.primaryDark || theme.colors.primary};
+		}
+	`}
+`;
+
+const PaginationInfo = styled.div`
+	font-size: ${({ theme }) => theme.fontSizes.sm};
+	color: ${({ theme }) => theme.colors.textLight};
+	margin: 0 ${({ theme }) => theme.spacing[4]};
+`;
+
+const CategoriesList = styled.div`
+	display: flex;
+	flex-wrap: wrap;
+	gap: ${({ theme }) => theme.spacing[1]};
+`;
+
+const LoadingSpinner = styled.div`
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: ${({ theme }) => theme.spacing[8]};
+	color: ${({ theme }) => theme.colors.textLight};
+`;
+
+const ErrorMessage = styled.div`
+	background: ${({ theme }) => theme.colors.errorLight};
+	color: ${({ theme }) => theme.colors.error};
+	padding: ${({ theme }) => theme.spacing[4]};
+	border-radius: ${({ theme }) => theme.radii.md};
+	text-align: center;
+`;
+
+const InsightsSection = styled.div`
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: ${({ theme }) => theme.spacing[6]};
+	margin-bottom: ${({ theme }) => theme.spacing[6]};
+
+	@media (max-width: ${({ theme }) => theme.breakpoints.lg}) {
+		grid-template-columns: 1fr;
+	}
+`;
+
+const InsightsGrid = styled.div`
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: ${({ theme }) => theme.spacing[6]};
+`;
+
+const SectionTitle = styled.h2`
+	font-size: ${({ theme }) => theme.fontSizes.xl};
+	font-weight: ${({ theme }) => theme.fontWeights.semibold};
+	color: ${({ theme }) => theme.colors.text};
+	margin: 0 0 ${({ theme }) => theme.spacing[4]} 0;
+	text-align: center;
+	grid-column: 1 / -1;
+`;
+
+const Dashboard: React.FC = () => {
+	const navigate = useNavigate();
+	const [data, setData] = useState<ReviewsResponse | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [filters, setFilters] = useState<FilterOptions>({});
+	const [sort, setSort] = useState<SortOptions>({
+		field: 'date',
+		direction: 'desc',
+	});
+	const [currentPage, setCurrentPage] = useState(1);
+	const [itemsPerPage] = useState(10);
+	const [approvingReviews, setApprovingReviews] = useState<Set<string>>(
+		new Set()
+	);
+	const [expandedReviews, setExpandedReviews] = useState<Set<string>>(
+		new Set()
+	);
+	const [truncatedReviews, setTruncatedReviews] = useState<Set<string>>(
+		new Set()
+	);
+
+	useEffect(() => {
+		loadReviews();
+	}, []);
+
+	// Reset to first page when filters change
+	useEffect(() => {
+		setCurrentPage(1);
+	}, [filters, sort]);
+
+	const loadReviews = async () => {
+		try {
+			setLoading(true);
+			setError(null);
+			const response = await getReviews();
+			setData(response);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to load reviews');
+		} finally {
+			setLoading(false);
+		}
+	};
+
+	const handleApproveToggle = async (
+		reviewId: string,
+		event: React.MouseEvent
+	) => {
+		event.stopPropagation(); // Prevent card click when clicking approve button
+
+		// Add to loading state
+		setApprovingReviews((prev) => new Set(prev).add(reviewId));
+
+		// Optimistic update - immediately update the UI
+		if (data) {
+			const updatedReviews = data.reviews.map((review) =>
+				review.id === reviewId
+					? { ...review, managerApproved: !review.managerApproved }
+					: review
+			);
+			setData({ ...data, reviews: updatedReviews });
+		}
+
+		try {
+			await toggleApprove(reviewId);
+			// Success - optimistic update was correct, no need to reload
+		} catch (err) {
+			// Revert optimistic update on failure
+			if (data) {
+				const revertedReviews = data.reviews.map((review) =>
+					review.id === reviewId
+						? { ...review, managerApproved: !review.managerApproved }
+						: review
+				);
+				setData({ ...data, reviews: revertedReviews });
+			}
+			setError(
+				err instanceof Error ? err.message : 'Failed to update approval'
+			);
+		} finally {
+			// Remove from loading state
+			setApprovingReviews((prev) => {
+				const newSet = new Set(prev);
+				newSet.delete(reviewId);
+				return newSet;
+			});
+		}
+	};
+
+	const handleReviewClick = (reviewId: string) => {
+		// Find the review to get its propertyId for navigation
+		const review = data?.reviews.find((r) => r.id === reviewId);
+		if (review) {
+			navigate(`/property/${review.propertyId}`, {
+				state: { scrollToReviews: true },
+			});
+		}
+	};
+
+	const handleToggleExpanded = (reviewId: string, event: React.MouseEvent) => {
+		event.stopPropagation(); // Prevent card click when clicking read more button
+		setExpandedReviews((prev) => {
+			const newSet = new Set(prev);
+			if (newSet.has(reviewId)) {
+				newSet.delete(reviewId);
+			} else {
+				newSet.add(reviewId);
+			}
+			return newSet;
+		});
+	};
+
+	const checkIfTextIsTruncated = (
+		reviewId: string,
+		element: HTMLDivElement
+	) => {
+		// Compare scrollHeight (full content height) to clientHeight (visible height)
+		// If scrollHeight > clientHeight, the text is truncated
+		const isTruncated = element.scrollHeight > element.clientHeight;
+
+		setTruncatedReviews((prev) => {
+			const newSet = new Set(prev);
+			if (isTruncated) {
+				newSet.add(reviewId);
+			} else {
+				newSet.delete(reviewId);
+			}
+			return newSet;
+		});
+	};
+
+	if (loading) {
+		return <LoadingSpinner>Loading reviews...</LoadingSpinner>;
+	}
+
+	if (error) {
+		return (
+			<ErrorMessage>
+				{error}
+				<Button onClick={loadReviews} style={{ marginTop: '16px' }}>
+					Retry
+				</Button>
+			</ErrorMessage>
+		);
+	}
+
+	if (!data) {
+		return <ErrorMessage>No data available</ErrorMessage>;
+	}
+
+	const filteredReviews = filterReviews(data.reviews, filters);
+	const sortedReviews = sortReviews(filteredReviews, sort);
+
+	// Pagination logic
+	const totalPages = Math.ceil(sortedReviews.length / itemsPerPage);
+	const startIndex = (currentPage - 1) * itemsPerPage;
+	const endIndex = startIndex + itemsPerPage;
+	const paginatedReviews = sortedReviews.slice(startIndex, endIndex);
+
+	const uniqueChannels = getUniqueChannels(data.reviews);
+	const uniqueListings = getUniqueListings(data.reviews);
+
+	// Calculate statistics - use filtered reviews for per-listing stats
+	const statsReviews = filters.listingId
+		? data.reviews.filter((review) => review.propertyId === filters.listingId)
+		: data.reviews;
+
+	const stats = {
+		totalReviews: statsReviews.length,
+		approvedReviews: statsReviews.filter((r) => r.managerApproved).length,
+		averageRating:
+			statsReviews.reduce((sum, r) => sum + (r.rating || 0), 0) /
+			statsReviews.filter((r) => r.rating).length,
+		pendingReviews: statsReviews.filter((r) => !r.managerApproved).length,
+	};
+
+	// Trend Analysis Data - Use filtered reviews for per-listing analysis
+	const trendAnalysisReviews = filters.listingId
+		? data.reviews.filter((review) => review.propertyId === filters.listingId)
+		: data.reviews;
+
+	const categoryInsights = getCategoryInsights(trendAnalysisReviews);
+	const monthlyTrends = getMonthlyTrends(trendAnalysisReviews);
+	const recurringIssues = getRecurringIssues(trendAnalysisReviews);
+	const performanceAlerts = getPerformanceAlerts(trendAnalysisReviews);
+
+	// Get the selected listing name for display
+	const selectedListing = filters.listingId
+		? uniqueListings.find((listing) => listing.id === filters.listingId)
+		: null;
+
+	return (
+		<DashboardContainer>
+			<Header>
+				<Title>
+					{selectedListing
+						? `${selectedListing.name} - Performance Dashboard`
+						: 'Reviews Dashboard'}
+				</Title>
+				<StatsGrid>
+					<StatCard>
+						<StatValue>{stats.totalReviews}</StatValue>
+						<StatLabel>Total Reviews</StatLabel>
+					</StatCard>
+					<StatCard>
+						<StatValue>{stats.approvedReviews}</StatValue>
+						<StatLabel>Approved</StatLabel>
+					</StatCard>
+					<StatCard>
+						<StatValue>{stats.pendingReviews}</StatValue>
+						<StatLabel>Pending</StatLabel>
+					</StatCard>
+					<StatCard>
+						<StatValue>{stats.averageRating.toFixed(1)}</StatValue>
+						<StatLabel>Avg Rating</StatLabel>
+					</StatCard>
+				</StatsGrid>
+			</Header>
+
+			{/* Trend Analysis Section */}
+			{selectedListing && (
+				<InsightsSection>
+					<SectionTitle>
+						📊 {selectedListing.name} Performance Analysis
+					</SectionTitle>
+				</InsightsSection>
+			)}
+
+			{performanceAlerts.length > 0 && (
+				<InsightsSection>
+					<PerformanceAlerts alerts={performanceAlerts} />
+					<RecurringIssues issues={recurringIssues} />
+				</InsightsSection>
+			)}
+
+			<InsightsGrid>
+				<CategoryGrid categories={categoryInsights} />
+				<TrendTimeline trends={monthlyTrends} />
+			</InsightsGrid>
+
+			<FiltersSection>
+				<FilterGroup>
+					<FilterLabel>Listing</FilterLabel>
+					<Select
+						value={filters.listingId || ''}
+						onChange={(e) =>
+							setFilters({ ...filters, listingId: e.target.value || undefined })
+						}
+					>
+						<option value="">All Listings</option>
+						{uniqueListings.map((listing) => (
+							<option key={listing.id} value={listing.id}>
+								{listing.name}
+							</option>
+						))}
+					</Select>
+				</FilterGroup>
+
+				<FilterGroup>
+					<FilterLabel>Channel</FilterLabel>
+					<Select
+						value={filters.channel?.[0] || ''}
+						onChange={(e) =>
+							setFilters({
+								...filters,
+								channel: e.target.value ? [e.target.value] : undefined,
+							})
+						}
+					>
+						<option value="">All Channels</option>
+						{uniqueChannels.map((channel) => (
+							<option key={channel} value={channel}>
+								{formatChannelName(channel)}
+							</option>
+						))}
+					</Select>
+				</FilterGroup>
+
+				<FilterGroup>
+					<FilterLabel>Approval Status</FilterLabel>
+					<Select
+						value={
+							filters.approved === undefined ? '' : filters.approved.toString()
+						}
+						onChange={(e) =>
+							setFilters({
+								...filters,
+								approved:
+									e.target.value === '' ? undefined : e.target.value === 'true',
+							})
+						}
+					>
+						<option value="">All</option>
+						<option value="true">Approved</option>
+						<option value="false">Pending</option>
+					</Select>
+				</FilterGroup>
+
+				<FilterGroup>
+					<FilterLabel>Sort By</FilterLabel>
+					<Select
+						value={`${sort.field}-${sort.direction}`}
+						onChange={(e) => {
+							const [field, direction] = e.target.value.split('-');
+							setSort({
+								field: field as 'rating' | 'date' | 'guestName' | 'listingName',
+								direction: direction as 'asc' | 'desc',
+							});
+						}}
+					>
+						<option value="date-desc">Newest First</option>
+						<option value="date-asc">Oldest First</option>
+						<option value="rating-desc">Highest Rating</option>
+						<option value="rating-asc">Lowest Rating</option>
+						<option value="guestName-asc">Guest Name A-Z</option>
+						<option value="guestName-desc">Guest Name Z-A</option>
+					</Select>
+				</FilterGroup>
+
+				<FilterGroup>
+					<FilterLabel>&nbsp;</FilterLabel>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={() => {
+							setFilters({});
+							setSort({ field: 'date', direction: 'desc' });
+						}}
+					>
+						Clear Filters
+					</Button>
+				</FilterGroup>
+			</FiltersSection>
+
+			<ReviewsSection>
+				<ReviewsHeader>
+					<Title>Reviews ({sortedReviews.length})</Title>
+					<ReviewsCount>
+						Showing {startIndex + 1}-{Math.min(endIndex, sortedReviews.length)}{' '}
+						of {sortedReviews.length} reviews
+					</ReviewsCount>
+				</ReviewsHeader>
+
+				<ReviewsList>
+					{paginatedReviews.map((review) => (
+						<ReviewCard
+							key={review.id}
+							onClick={() => handleReviewClick(review.id)}
+						>
+							<ReviewContent>
+								<ReviewHeader>
+									<ReviewRating>
+										{review.rating
+											? `${formatRating(review.rating)} ⭐`
+											: 'No Rating'}
+									</ReviewRating>
+									<Badge
+										variant={review.managerApproved ? 'success' : 'warning'}
+									>
+										{review.managerApproved ? 'Approved' : 'Pending'}
+									</Badge>
+									<Badge variant="info">
+										{formatChannelName(review.channel)}
+									</Badge>
+								</ReviewHeader>
+
+								<ReviewMeta>
+									<span>{review.guestName || 'Anonymous'}</span>
+									<span>•</span>
+									<span>{formatDate(review.submittedAt)}</span>
+									<span>•</span>
+									<span>{review.listingName}</span>
+								</ReviewMeta>
+
+								{review.text && (
+									<div>
+										<TruncatedText
+											$isExpanded={expandedReviews.has(review.id)}
+											ref={(el) => {
+												if (el && !expandedReviews.has(review.id)) {
+													// Check if text is truncated after component mounts
+													setTimeout(
+														() => checkIfTextIsTruncated(review.id, el),
+														0
+													);
+												}
+											}}
+										>
+											{review.text}
+										</TruncatedText>
+										{/* Only show button if text is actually truncated */}
+										{truncatedReviews.has(review.id) && (
+											<ReadMoreButton
+												onClick={(e) => handleToggleExpanded(review.id, e)}
+											>
+												{expandedReviews.has(review.id)
+													? 'Read less'
+													: 'Read more'}
+											</ReadMoreButton>
+										)}
+									</div>
+								)}
+
+								{review.categories.length > 0 && (
+									<CategoriesList>
+										{review.categories.map((category) => (
+											<Badge key={category.category} size="sm">
+												{formatCategoryName(category.category)}:{' '}
+												{category.rating}/5
+											</Badge>
+										))}
+									</CategoriesList>
+								)}
+							</ReviewContent>
+
+							<ReviewActions>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={(e) => {
+										e.stopPropagation();
+										handleReviewClick(review.id);
+									}}
+								>
+									View Property
+								</Button>
+								<Button
+									variant={review.managerApproved ? 'secondary' : 'primary'}
+									size="sm"
+									onClick={(e) => handleApproveToggle(review.id, e)}
+									disabled={approvingReviews.has(review.id)}
+								>
+									{approvingReviews.has(review.id)
+										? 'Updating...'
+										: review.managerApproved
+											? 'Unapprove'
+											: 'Approve'}
+								</Button>
+							</ReviewActions>
+						</ReviewCard>
+					))}
+				</ReviewsList>
+
+				{totalPages > 1 && (
+					<PaginationContainer>
+						<PaginationButton
+							variant="outline"
+							onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+							disabled={currentPage === 1}
+						>
+							‹
+						</PaginationButton>
+
+						{Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+							// Show first page, last page, current page, and pages around current
+							const shouldShow =
+								page === 1 ||
+								page === totalPages ||
+								(page >= currentPage - 1 && page <= currentPage + 1);
+
+							if (!shouldShow) {
+								// Show ellipsis for gaps
+								if (page === currentPage - 2 || page === currentPage + 2) {
+									return <span key={page}>...</span>;
+								}
+								return null;
+							}
+
+							return (
+								<PaginationButton
+									key={page}
+									variant="outline"
+									$active={page === currentPage}
+									onClick={() => setCurrentPage(page)}
+								>
+									{page}
+								</PaginationButton>
+							);
+						})}
+
+						<PaginationButton
+							variant="outline"
+							onClick={() =>
+								setCurrentPage(Math.min(totalPages, currentPage + 1))
+							}
+							disabled={currentPage === totalPages}
+						>
+							›
+						</PaginationButton>
+
+						<PaginationInfo>
+							Page {currentPage} of {totalPages}
+						</PaginationInfo>
+					</PaginationContainer>
+				)}
+			</ReviewsSection>
+		</DashboardContainer>
+	);
+};
+
+export default Dashboard;
