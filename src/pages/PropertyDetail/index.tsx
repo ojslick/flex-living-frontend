@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
-import { getReviews } from '../../lib/api';
+import { getHostawayReviews, getGoogleReviews } from '../../lib/api';
 import type { ReviewsResponse } from '../../lib/types';
 import {
 	getPropertyDetails,
@@ -150,8 +150,25 @@ const PropertyDetail: React.FC = () => {
 		try {
 			setLoading(true);
 			setError(null);
-			const response = await getReviews();
-			setData(response);
+			// Fetch Hostaway and Google in parallel and merge
+			const [hostaway, google] = await Promise.all([
+				getHostawayReviews().catch(() => null),
+				getGoogleReviews().catch(() => null),
+			]);
+
+			const mergedReviews = [
+				...(hostaway?.reviews || []),
+				...(google?.reviews || []),
+			];
+
+			setData({
+				reviews: mergedReviews,
+				aggregations: {
+					byListing: {},
+					byChannel: {},
+					byMonth: {},
+				},
+			});
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load reviews');
 		} finally {

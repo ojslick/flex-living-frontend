@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { render } from '../../test/setup';
 import Dashboard from '../Dashboard';
 
@@ -27,7 +27,13 @@ vi.mock('../../lib/filters', () => ({
 
 // Mock the dashboard components
 vi.mock('../../components/dashboard', () => ({
-	DashboardHeader: ({ selectedListing, stats }: any) => (
+	DashboardHeader: ({
+		selectedListing,
+		stats,
+	}: {
+		selectedListing?: { id: string; name: string } | null;
+		stats: { totalReviews: number };
+	}) => (
 		<div data-testid="dashboard-header">
 			<h1>
 				{selectedListing
@@ -41,7 +47,11 @@ vi.mock('../../components/dashboard', () => ({
 		onFiltersChange,
 		onSortChange,
 		onClearFilters,
-	}: any) => (
+	}: {
+		onFiltersChange: (f: Record<string, unknown>) => void;
+		onSortChange: (s: Record<string, unknown>) => void;
+		onClearFilters: () => void;
+	}) => (
 		<div data-testid="dashboard-filters">
 			<button onClick={() => onFiltersChange({ listingId: 'prop-1' })}>
 				Filter
@@ -55,10 +65,18 @@ vi.mock('../../components/dashboard', () => ({
 		</div>
 	),
 	DashboardInsights: () => <div data-testid="dashboard-insights">Insights</div>,
-	DashboardReviews: ({ reviews, onReviewClick, onApproveToggle }: any) => (
+	DashboardReviews: ({
+		reviews,
+		onReviewClick,
+		onApproveToggle,
+	}: {
+		reviews: Array<{ id: string; guestName: string }>;
+		onReviewClick: (id: string) => void;
+		onApproveToggle: (id: string, e: unknown) => void;
+	}) => (
 		<div data-testid="dashboard-reviews">
 			<div>Reviews: {reviews.length}</div>
-			{reviews.map((review: any) => (
+			{reviews.map((review) => (
 				<div key={review.id} onClick={() => onReviewClick(review.id)}>
 					{review.guestName}
 					<button onClick={(e) => onApproveToggle(review.id, e)}>Toggle</button>
@@ -66,7 +84,15 @@ vi.mock('../../components/dashboard', () => ({
 			))}
 		</div>
 	),
-	DashboardPagination: ({ currentPage, totalPages, onPageChange }: any) => (
+	DashboardPagination: ({
+		currentPage,
+		totalPages,
+		onPageChange,
+	}: {
+		currentPage: number;
+		totalPages: number;
+		onPageChange: (p: number) => void;
+	}) => (
 		<div data-testid="dashboard-pagination">
 			<div>
 				Page {currentPage} of {totalPages}
@@ -109,8 +135,10 @@ describe('Dashboard', () => {
 	beforeEach(async () => {
 		vi.clearAllMocks();
 		// Mock successful API response
-		const { getReviews } = await import('../../lib/api');
-		vi.mocked(getReviews).mockResolvedValue(mockReviewsData);
+    const mod = await import('../../lib/api');
+		(
+			mod.getReviews as unknown as { mockResolvedValue: (v: unknown) => void }
+		).mockResolvedValue(mockReviewsData as unknown);
 	});
 
 	afterEach(() => {
@@ -162,9 +190,10 @@ describe('Dashboard', () => {
 	});
 
 	it('should handle API errors', async () => {
-		const { getReviews } = await import('../../lib/api');
-		vi.mocked(getReviews);
-		getReviews.mockRejectedValue(new Error('API Error'));
+		const mod = await import('../../lib/api');
+		(
+			mod.getReviews as unknown as { mockRejectedValue: (e: unknown) => void }
+		).mockRejectedValue(new Error('API Error'));
 
 		renderWithRouter(<Dashboard />);
 
@@ -176,10 +205,19 @@ describe('Dashboard', () => {
 	});
 
 	it('should handle retry button click', async () => {
-		const { getReviews } = await import('../../lib/api');
-		vi.mocked(getReviews);
-		getReviews.mockRejectedValueOnce(new Error('API Error'));
-		getReviews.mockResolvedValueOnce(mockReviewsData);
+		const mod = await import('../../lib/api');
+		(
+			mod.getReviews as unknown as {
+				mockRejectedValueOnce: (e: unknown) => void;
+				mockResolvedValueOnce: (v: unknown) => void;
+			}
+		).mockRejectedValueOnce(new Error('API Error'));
+		(
+			mod.getReviews as unknown as {
+				mockRejectedValueOnce: (e: unknown) => void;
+				mockResolvedValueOnce: (v: unknown) => void;
+			}
+		).mockResolvedValueOnce(mockReviewsData as unknown);
 
 		renderWithRouter(<Dashboard />);
 
@@ -196,9 +234,10 @@ describe('Dashboard', () => {
 	});
 
 	it('should handle no data available', async () => {
-		const { getReviews } = await import('../../lib/api');
-		vi.mocked(getReviews);
-		getReviews.mockResolvedValue(null);
+		const mod = await import('../../lib/api');
+		(
+			mod.getReviews as unknown as { mockResolvedValue: (v: unknown) => void }
+		).mockResolvedValue(null as unknown);
 
 		renderWithRouter(<Dashboard />);
 
@@ -232,9 +271,12 @@ describe('Dashboard', () => {
 	});
 
 	it('should handle approve toggle', async () => {
-		const { toggleApprove } = await import('../../lib/api');
-		vi.mocked(toggleApprove);
-		toggleApprove.mockResolvedValue({ success: true });
+		const apiMod = await import('../../lib/api');
+		(
+			apiMod.toggleApprove as unknown as {
+				mockResolvedValue: (v: unknown) => void;
+			}
+		).mockResolvedValue({ id: '1', managerApproved: true });
 
 		renderWithRouter(<Dashboard />);
 
@@ -245,13 +287,20 @@ describe('Dashboard', () => {
 		const toggleButton = screen.getByText('Toggle');
 		toggleButton.click();
 
-		expect(toggleApprove).toHaveBeenCalledWith('1');
+		const api = await import('../../lib/api');
+		expect(
+			(api.toggleApprove as unknown as { mock: { calls: unknown[][] } }).mock
+				.calls[0][0]
+		).toBe('1');
 	});
 
 	it('should handle approve toggle error', async () => {
-		const { toggleApprove } = await import('../../lib/api');
-		vi.mocked(toggleApprove);
-		toggleApprove.mockRejectedValue(new Error('Toggle Error'));
+		const apiMod = await import('../../lib/api');
+		(
+			apiMod.toggleApprove as unknown as {
+				mockRejectedValue: (e: unknown) => void;
+			}
+		).mockRejectedValue(new Error('Toggle Error'));
 
 		renderWithRouter(<Dashboard />);
 
@@ -263,7 +312,11 @@ describe('Dashboard', () => {
 		toggleButton.click();
 
 		// Should not throw error, just log it
-		expect(toggleApprove).toHaveBeenCalledWith('1');
+		const api = await import('../../lib/api');
+		expect(
+			(api.toggleApprove as unknown as { mock: { calls: unknown[][] } }).mock
+				.calls[0][0]
+		).toBe('1');
 	});
 
 	it('should handle filter changes', async () => {
@@ -325,9 +378,13 @@ describe('Dashboard', () => {
 	});
 
 	it('should handle empty reviews array', async () => {
-		const { getReviews } = await import('../../lib/api');
-		vi.mocked(getReviews);
-		getReviews.mockResolvedValue({ reviews: [], aggregations: {} });
+		const mod = await import('../../lib/api');
+		(
+			mod.getReviews as unknown as { mockResolvedValue: (v: unknown) => void }
+		).mockResolvedValue({
+			reviews: [],
+			aggregations: { byListing: {}, byChannel: {}, byMonth: {} },
+		} as unknown);
 
 		renderWithRouter(<Dashboard />);
 
@@ -351,9 +408,10 @@ describe('Dashboard', () => {
 			aggregations: mockReviewsData.aggregations,
 		};
 
-		const { getReviews } = await import('../../lib/api');
-		vi.mocked(getReviews);
-		getReviews.mockResolvedValue(multipleReviewsData);
+		const mod = await import('../../lib/api');
+		(
+			mod.getReviews as unknown as { mockResolvedValue: (v: unknown) => void }
+		).mockResolvedValue(multipleReviewsData as unknown);
 
 		renderWithRouter(<Dashboard />);
 

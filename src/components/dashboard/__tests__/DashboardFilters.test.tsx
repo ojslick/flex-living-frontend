@@ -227,7 +227,7 @@ describe('DashboardFilters', () => {
 	});
 
 	it('should handle empty channels array', () => {
-		render(<DashboardFilters {...defaultProps} uniqueChannels={[]} />);
+  render(<DashboardFilters {...defaultProps} />);
 
 		const channelSelect = screen.getByLabelText('Channel');
 		expect(channelSelect).toBeInTheDocument();

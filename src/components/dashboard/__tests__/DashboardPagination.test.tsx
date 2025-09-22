@@ -5,11 +5,13 @@ import { render } from '../../../test/setup';
 import DashboardPagination from '../DashboardPagination';
 
 describe('DashboardPagination', () => {
-	const defaultProps = {
-		currentPage: 1,
-		totalPages: 5,
-		onPageChange: vi.fn(),
-	};
+    const defaultProps = {
+			currentPage: 1,
+			totalPages: 5,
+			onPageChange: vi.fn(),
+			totalItems: 50,
+			itemsPerPage: 10,
+		} as const;
 
 	beforeEach(() => {
 		vi.clearAllMocks();

@@ -127,7 +127,7 @@ const PropertyDescription: React.FC<PropertyDescriptionProps> = ({
 			<SectionTitle>About this property</SectionTitle>
 			<InlineContainer>
 				<DescriptionText $isExpanded={isDescriptionExpanded}>
-					{propertyDetails.description.join(' ')}
+					{propertyDetails.description?.join(' ') || ''}
 				</DescriptionText>
 				{!isDescriptionExpanded && (
 					<>

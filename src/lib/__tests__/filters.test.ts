@@ -10,7 +10,7 @@ import {
 	getRecurringIssues,
 	getPerformanceAlerts,
 } from '../filters';
-import type { NormalizedReview, FilterOptions, SortOptions } from '../../types';
+import type { NormalizedReview, FilterOptions, SortOptions } from '../types';
 
 const mockReviews: NormalizedReview[] = [
 	{
@@ -121,12 +121,12 @@ describe('filter utilities', () => {
 		});
 
 		it('should filter by date range', () => {
-			const filters: FilterOptions = {
-				dateRange: {
-					start: new Date('2024-01-12'),
-					end: new Date('2024-01-18'),
-				},
-			};
+            const filters: FilterOptions = {
+							dateRange: {
+								start: '2024-01-12T00:00:00Z',
+								end: '2024-01-18T00:00:00Z',
+							},
+						};
 			const result = filterReviews(mockReviews, filters);
 			expect(result).toHaveLength(1);
 			expect(result[0].id).toBe('1');

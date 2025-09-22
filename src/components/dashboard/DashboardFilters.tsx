@@ -71,7 +71,6 @@ interface DashboardFiltersProps {
 	onSortChange: (sort: SortOptions) => void;
 	onClearFilters: () => void;
 	uniqueListings: Array<{ id: string; name: string }>;
-	uniqueChannels: string[];
 }
 
 const DashboardFilters: React.FC<DashboardFiltersProps> = ({
@@ -81,7 +80,6 @@ const DashboardFilters: React.FC<DashboardFiltersProps> = ({
 	onSortChange,
 	onClearFilters,
 	uniqueListings,
-	uniqueChannels,
 }) => {
 	return (
 		<FiltersSection>

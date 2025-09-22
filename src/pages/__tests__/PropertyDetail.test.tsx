@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { render } from '../../test/setup';
+import type { ReviewsResponse } from '../../lib/types';
 import PropertyDetail from '../PropertyDetail';
 
 // Mock the API functions
@@ -53,7 +54,7 @@ vi.mock('../../components/property', () => ({
 	PropertyBooking: () => <div data-testid="property-booking">Booking</div>,
 }));
 
-const mockReviewsData = {
+const mockReviewsData: ReviewsResponse = {
 	reviews: [
 		{
 			id: '1',
@@ -211,7 +212,10 @@ describe('PropertyDetail', () => {
 
 	it('should handle no data available', async () => {
 		const { getReviews } = await import('../../lib/api');
-		vi.mocked(getReviews).mockResolvedValue(null);
+		vi.mocked(getReviews).mockResolvedValue({
+			reviews: [],
+			aggregations: { byListing: {}, byChannel: {}, byMonth: {} },
+		} as ReviewsResponse);
 
 		renderWithRouter(<PropertyDetail />);
 
@@ -276,8 +280,7 @@ describe('PropertyDetail', () => {
 
 	it('should handle different listing IDs', async () => {
 		const { getPropertyDetails } = await import('../../lib/propertyData');
-		vi.mocked(getPropertyDetails);
-		getPropertyDetails.mockReturnValue({
+		vi.mocked(getPropertyDetails).mockReturnValue({
 			...mockPropertyDetails,
 			id: 'different-listing',
 			name: 'Different Property',
@@ -292,8 +295,10 @@ describe('PropertyDetail', () => {
 
 	it('should handle empty reviews array', async () => {
 		const { getReviews } = await import('../../lib/api');
-		vi.mocked(getReviews);
-		getReviews.mockResolvedValue({ reviews: [], aggregations: {} });
+		vi.mocked(getReviews).mockResolvedValue({
+			reviews: [],
+			aggregations: { byListing: {}, byChannel: {}, byMonth: {} },
+		} as ReviewsResponse);
 
 		renderWithRouter(<PropertyDetail />);
 
@@ -318,8 +323,9 @@ describe('PropertyDetail', () => {
 		};
 
 		const { getReviews } = await import('../../lib/api');
-		vi.mocked(getReviews);
-		getReviews.mockResolvedValue(multipleReviewsData);
+		vi.mocked(getReviews).mockResolvedValue(
+			multipleReviewsData as ReviewsResponse
+		);
 
 		renderWithRouter(<PropertyDetail />);
 
@@ -332,8 +338,7 @@ describe('PropertyDetail', () => {
 
 	it('should handle property details with missing fields', async () => {
 		const { getPropertyDetails } = await import('../../lib/propertyData');
-		vi.mocked(getPropertyDetails);
-		getPropertyDetails.mockReturnValue({
+		vi.mocked(getPropertyDetails).mockReturnValue({
 			...mockPropertyDetails,
 			description: null,
 			checkInTime: null,
@@ -364,8 +369,7 @@ describe('PropertyDetail', () => {
 
 	it('should handle URL parameter changes', async () => {
 		const { getPropertyDetails } = await import('../../lib/propertyData');
-		vi.mocked(getPropertyDetails);
-		getPropertyDetails.mockReturnValue(mockPropertyDetails);
+		vi.mocked(getPropertyDetails).mockReturnValue(mockPropertyDetails);
 
 		const { rerender } = renderWithRouter(<PropertyDetail />, [
 			'/property/listing-1',

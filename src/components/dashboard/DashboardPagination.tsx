@@ -45,8 +45,8 @@ const PaginationInfo = styled.div`
 interface DashboardPaginationProps {
 	currentPage: number;
 	totalPages: number;
-	totalItems: number;
-	itemsPerPage: number;
+	totalItems?: number;
+	itemsPerPage?: number;
 	onPageChange: (page: number) => void;
 }
 
@@ -57,38 +57,44 @@ const DashboardPagination: React.FC<DashboardPaginationProps> = ({
 	itemsPerPage,
 	onPageChange,
 }) => {
-	const startItem = (currentPage - 1) * itemsPerPage + 1;
-	const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+    const startItem =
+			itemsPerPage && totalItems
+				? (currentPage - 1) * itemsPerPage + 1
+				: undefined;
+		const endItem =
+			itemsPerPage && totalItems
+				? Math.min(currentPage * itemsPerPage, totalItems)
+				: undefined;
 
-	const getVisiblePages = () => {
-		const delta = 2;
-		const range = [];
-		const rangeWithDots = [];
+    const getVisiblePages = () => {
+			const delta = 2;
+			const range: number[] = [];
+			const rangeWithDots: Array<number | '...'> = [];
 
-		for (
-			let i = Math.max(2, currentPage - delta);
-			i <= Math.min(totalPages - 1, currentPage + delta);
-			i++
-		) {
-			range.push(i);
-		}
+			for (
+				let i = Math.max(2, currentPage - delta);
+				i <= Math.min(totalPages - 1, currentPage + delta);
+				i++
+			) {
+				range.push(i);
+			}
 
-		if (currentPage - delta > 2) {
-			rangeWithDots.push(1, '...');
-		} else {
-			rangeWithDots.push(1);
-		}
+			if (currentPage - delta > 2) {
+				rangeWithDots.push(1, '...');
+			} else {
+				rangeWithDots.push(1);
+			}
 
-		rangeWithDots.push(...range);
+			rangeWithDots.push(...range);
 
-		if (currentPage + delta < totalPages - 1) {
-			rangeWithDots.push('...', totalPages);
-		} else if (totalPages > 1) {
-			rangeWithDots.push(totalPages);
-		}
+			if (currentPage + delta < totalPages - 1) {
+				rangeWithDots.push('...', totalPages);
+			} else if (totalPages > 1) {
+				rangeWithDots.push(totalPages);
+			}
 
-		return rangeWithDots;
-	};
+			return rangeWithDots;
+		};
 
 	if (totalPages <= 1) {
 		return null;
@@ -130,9 +136,13 @@ const DashboardPagination: React.FC<DashboardPaginationProps> = ({
 				Next
 			</PaginationButton>
 
-			<PaginationInfo>
-				Showing {startItem}-{endItem} of {totalItems} reviews
-			</PaginationInfo>
+			{startItem !== undefined &&
+				endItem !== undefined &&
+				totalItems !== undefined && (
+					<PaginationInfo>
+						Showing {startItem}-{endItem} of {totalItems} reviews
+					</PaginationInfo>
+				)}
 		</PaginationContainer>
 	);
 };

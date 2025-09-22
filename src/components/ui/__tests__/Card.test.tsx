@@ -29,7 +29,11 @@ describe('Card', () => {
 
 	it('should handle click events when onClick is provided', () => {
 		const handleClick = vi.fn();
-		render(<Card onClick={handleClick}>Clickable Card</Card>);
+    render(
+			<div onClick={handleClick}>
+				<Card>Clickable Card</Card>
+			</div>
+		);
 
 		const card = screen.getByText('Clickable Card');
 		fireEvent.click(card);
@@ -67,7 +71,11 @@ describe('Card', () => {
 
 	it('should handle multiple click events', () => {
 		const handleClick = vi.fn();
-		render(<Card onClick={handleClick}>Multi-click Card</Card>);
+    render(
+			<div onClick={handleClick}>
+				<Card>Multi-click Card</Card>
+			</div>
+		);
 
 		const card = screen.getByText('Multi-click Card');
 		fireEvent.click(card);
@@ -78,7 +86,7 @@ describe('Card', () => {
 	});
 
 	it('should render with empty content', () => {
-		const { container } = render(<Card></Card>);
+    const { container } = render(<Card> </Card>);
 		const card = container.querySelector('div');
 		expect(card).toBeInTheDocument();
 	});
@@ -97,7 +105,11 @@ describe('Card', () => {
 
 	it('should handle keyboard events when clickable', () => {
 		const handleClick = vi.fn();
-		render(<Card onClick={handleClick}>Keyboard Card</Card>);
+    render(
+			<div onClick={handleClick}>
+				<Card>Keyboard Card</Card>
+			</div>
+		);
 
 		const card = screen.getByText('Keyboard Card');
 

@@ -1,4 +1,4 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import styled from 'styled-components';
 import type { NormalizedReview } from '../../lib/types';
 import { formatDate, formatRating, formatCategoryName } from '../../lib/format';
@@ -200,4 +200,3 @@ const PropertyReviews = forwardRef<HTMLDivElement, PropertyReviewsProps>(
 PropertyReviews.displayName = 'PropertyReviews';
 
 export default PropertyReviews;
-

@@ -281,34 +281,36 @@ const TrendTimeline: React.FC<TrendTimelineProps> = ({ trends }) => {
 			/>
 		));
 
-		return (
-			<ChartContainer>
-				<ChartTitle>📊 Rating Trend Over Time</ChartTitle>
-				<ChartSubtitle>
-					Monthly average ratings from {formatMonth(trends[0].month)} to{' '}
-					{formatMonth(trends[trends.length - 1].month)}
-				</ChartSubtitle>
-				<ChartSVG viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
-					{gridLines}
-					<AreaFill points={areaPoints} />
-					{yLabels}
-					{xLabels}
-					<DataLine points={points} />
-					{dataPoints}
-				</ChartSVG>
-				{hoveredPoint && (
-					<Tooltip $x={hoveredPoint.x} $y={hoveredPoint.y}>
-						<TooltipTitle>{formatMonth(hoveredPoint.trend.month)}</TooltipTitle>
-						<TooltipContent>
-							<div>Average Rating: {hoveredPoint.trend.avgRating}/10</div>
-							<div>Issues: {hoveredPoint.trend.issues}</div>
-							<div>Issue Rate: {hoveredPoint.trend.issueRate}%</div>
-							<div>Trend: {hoveredPoint.trend.trend}</div>
-						</TooltipContent>
-					</Tooltip>
-				)}
-			</ChartContainer>
-		);
+        return (
+					<ChartContainer>
+						<ChartTitle>📈 Monthly Performance Trends</ChartTitle>
+						<ChartSubtitle>
+							Monthly average ratings from {formatMonth(trends[0].month)} to{' '}
+							{formatMonth(trends[trends.length - 1].month)}
+						</ChartSubtitle>
+						<ChartSVG viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
+							{gridLines}
+							<AreaFill points={areaPoints} />
+							{yLabels}
+							{xLabels}
+							<DataLine points={points} />
+							{dataPoints}
+						</ChartSVG>
+						{hoveredPoint && (
+							<Tooltip $x={hoveredPoint.x} $y={hoveredPoint.y}>
+								<TooltipTitle>
+									{formatMonth(hoveredPoint.trend.month)}
+								</TooltipTitle>
+								<TooltipContent>
+									<div>Average Rating: {hoveredPoint.trend.avgRating}/10</div>
+									<div>Issues: {hoveredPoint.trend.issues}</div>
+									<div>Issue Rate: {hoveredPoint.trend.issueRate}%</div>
+									<div>Trend: {hoveredPoint.trend.trend}</div>
+								</TooltipContent>
+							</Tooltip>
+						)}
+					</ChartContainer>
+				);
 	};
 
 	if (trends.length === 0) {

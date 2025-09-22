@@ -130,11 +130,11 @@ const PropertyStayPolicies: React.FC<PropertyStayPoliciesProps> = ({
 				<PolicyGrid>
 					<PolicyItem>
 						<PolicyLabel>Check-in Time</PolicyLabel>
-						<PolicyValue>{propertyDetails.checkInTime}</PolicyValue>
+						<PolicyValue>{propertyDetails.checkInTime || '—'}</PolicyValue>
 					</PolicyItem>
 					<PolicyItem>
 						<PolicyLabel>Check-out Time</PolicyLabel>
-						<PolicyValue>{propertyDetails.checkOutTime}</PolicyValue>
+						<PolicyValue>{propertyDetails.checkOutTime || '—'}</PolicyValue>
 					</PolicyItem>
 				</PolicyGrid>
 			</PolicySection>

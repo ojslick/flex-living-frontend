@@ -153,10 +153,11 @@ const Dashboard: React.FC = () => {
 		}
 	};
 
-	const handleClearFilters = () => {
-		setFilters({ channel: ['hostaway'] }); // Reset to default Hostaway
-		setSort({ field: 'date', direction: 'desc' });
-	};
+    const handleClearFilters = () => {
+			// Preserve current channel to avoid triggering a refetch
+			setFilters((prev) => ({ channel: prev.channel }));
+			setSort({ field: 'date', direction: 'desc' });
+		};
 
 	const handlePageChange = (page: number) => {
 		setCurrentPage(page);
@@ -268,7 +269,6 @@ const Dashboard: React.FC = () => {
 				onSortChange={setSort}
 				onClearFilters={handleClearFilters}
 				uniqueListings={uniqueListings}
-				uniqueChannels={[]} // No longer needed since we hardcode channels
 			/>
 
 			<DashboardReviews

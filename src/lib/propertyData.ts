@@ -6,9 +6,9 @@ export interface PropertyDetails {
 	price: number;
 	currency: string;
 	amenities: string[];
-	description: string[];
-	checkInTime: string;
-	checkOutTime: string;
+	description: string[] | null;
+	checkInTime: string | null;
+	checkOutTime: string | null;
 	minStay: number;
 	images: string[];
 	propertyType: string;
@@ -176,7 +176,7 @@ export const defaultPropertyDetails: PropertyDetails = {
 /**
  * Get property details by listing UUID
  */
-export function getPropertyDetails(listingId: string): PropertyDetails {
+export function getPropertyDetails(listingId: string): PropertyDetails | null {
 	// Try to find exact UUID match first
 	if (propertyDetails[listingId]) {
 		return propertyDetails[listingId];

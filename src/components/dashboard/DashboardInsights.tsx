@@ -5,7 +5,7 @@ import type {
 	MonthlyTrend,
 	RecurringIssue,
 	PerformanceAlert,
-} from '../../lib/types';
+} from '../../lib/filters';
 import PerformanceAlerts from '../trends/PerformanceAlerts';
 import CategoryGrid from '../trends/CategoryGrid';
 import TrendTimeline from '../trends/TrendTimeline';

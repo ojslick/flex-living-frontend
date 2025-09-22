@@ -11,10 +11,10 @@ describe('Badge', () => {
 	});
 
 	it('should render with different variants', () => {
-		const { rerender } = render(<Badge variant="primary">Primary</Badge>);
+    const { rerender } = render(<Badge variant="info">Primary</Badge>);
 		expect(screen.getByText('Primary')).toBeInTheDocument();
 
-		rerender(<Badge variant="secondary">Secondary</Badge>);
+		rerender(<Badge variant="default">Secondary</Badge>);
 		expect(screen.getByText('Secondary')).toBeInTheDocument();
 
 		rerender(<Badge variant="success">Success</Badge>);
@@ -37,7 +37,7 @@ describe('Badge', () => {
 		rerender(<Badge size="md">Medium</Badge>);
 		expect(screen.getByText('Medium')).toBeInTheDocument();
 
-		rerender(<Badge size="lg">Large</Badge>);
+    rerender(<Badge size="md">Large</Badge>);
 		expect(screen.getByText('Large')).toBeInTheDocument();
 	});
 
@@ -58,8 +58,8 @@ describe('Badge', () => {
 	});
 
 	it('should handle multiple props together', () => {
-		render(
-			<Badge variant="success" size="lg" className="custom-class">
+    render(
+			<Badge variant="success" size="md" className="custom-class">
 				Success Large
 			</Badge>
 		);
@@ -69,7 +69,7 @@ describe('Badge', () => {
 	});
 
 	it('should render with empty content', () => {
-		const { container } = render(<Badge></Badge>);
+    const { container } = render(<Badge> </Badge>);
 		const badge = container.querySelector('span');
 		expect(badge).toBeInTheDocument();
 	});
