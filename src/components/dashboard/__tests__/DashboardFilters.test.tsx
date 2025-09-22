@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '../../../test/setup';
@@ -227,7 +227,7 @@ describe('DashboardFilters', () => {
 	});
 
 	it('should handle empty channels array', () => {
-  render(<DashboardFilters {...defaultProps} />);
+		render(<DashboardFilters {...defaultProps} />);
 
 		const channelSelect = screen.getByLabelText('Channel');
 		expect(channelSelect).toBeInTheDocument();

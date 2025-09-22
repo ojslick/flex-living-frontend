@@ -161,7 +161,9 @@ const TrendTimeline: React.FC<TrendTimelineProps> = ({ trends }) => {
 		x: number;
 		y: number;
 	} | null>(null);
-	const hoverTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+	const hoverTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+		null
+	);
 
 	const formatMonth = (month: string) => {
 		const date = new globalThis.Date(month + '-01');

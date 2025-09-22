@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '../../../test/setup';
@@ -6,55 +6,55 @@ import DashboardReviews from '../DashboardReviews';
 import type { NormalizedReview } from '../../../lib/types';
 
 describe('DashboardReviews', () => {
-    const mockReviews: NormalizedReview[] = [
-			{
-				id: '1',
-				propertyId: 'prop-1',
-				listingName: 'Test Property 1',
-				channel: 'hostaway',
-				type: 'guest-to-host',
-				status: 'published',
-				rating: 4.5,
-				categories: [
-					{ category: 'cleanliness', rating: 5 },
-					{ category: 'communication', rating: 4 },
-				],
-				text: 'Great stay! The property was clean and the host was very responsive.',
-				submittedAt: '2024-01-15T10:30:00Z',
-				guestName: 'John Doe',
-				managerApproved: true,
-				channelIdentifiers: {
-					hostaway: {
-						propertyId: 'prop-1',
-						listingName: 'Test Property 1',
-						reviewId: '1',
-					},
+	const mockReviews: NormalizedReview[] = [
+		{
+			id: '1',
+			propertyId: 'prop-1',
+			listingName: 'Test Property 1',
+			channel: 'hostaway',
+			type: 'guest-to-host',
+			status: 'published',
+			rating: 4.5,
+			categories: [
+				{ category: 'cleanliness', rating: 5 },
+				{ category: 'communication', rating: 4 },
+			],
+			text: 'Great stay! The property was clean and the host was very responsive.',
+			submittedAt: '2024-01-15T10:30:00Z',
+			guestName: 'John Doe',
+			managerApproved: true,
+			channelIdentifiers: {
+				hostaway: {
+					propertyId: 'prop-1',
+					listingName: 'Test Property 1',
+					reviewId: '1',
 				},
 			},
-			{
-				id: '2',
-				propertyId: 'prop-1',
-				listingName: 'Test Property 1',
-				channel: 'airbnb',
-				type: 'guest-to-host',
-				status: 'published',
-				rating: 3.0,
-				categories: [
-					{ category: 'cleanliness', rating: 2 },
-					{ category: 'noise', rating: 1 },
-				],
-				text: 'Could be better. The place was not very clean and there was a lot of noise from the street.',
-				submittedAt: '2024-01-10T10:30:00Z',
-				guestName: 'Jane Smith',
-				managerApproved: false,
-				channelIdentifiers: {
-					airbnb: {
-						listingId: 'prop-1',
-						reviewId: '2',
-					},
+		},
+		{
+			id: '2',
+			propertyId: 'prop-1',
+			listingName: 'Test Property 1',
+			channel: 'airbnb',
+			type: 'guest-to-host',
+			status: 'published',
+			rating: 3.0,
+			categories: [
+				{ category: 'cleanliness', rating: 2 },
+				{ category: 'noise', rating: 1 },
+			],
+			text: 'Could be better. The place was not very clean and there was a lot of noise from the street.',
+			submittedAt: '2024-01-10T10:30:00Z',
+			guestName: 'Jane Smith',
+			managerApproved: false,
+			channelIdentifiers: {
+				airbnb: {
+					listingId: 'prop-1',
+					reviewId: '2',
 				},
 			},
-		];
+		},
+	];
 
 	const defaultProps = {
 		reviews: mockReviews,

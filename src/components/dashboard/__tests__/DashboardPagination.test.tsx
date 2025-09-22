@@ -1,17 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '../../../test/setup';
 import DashboardPagination from '../DashboardPagination';
 
 describe('DashboardPagination', () => {
-    const defaultProps = {
-			currentPage: 1,
-			totalPages: 5,
-			onPageChange: vi.fn(),
-			totalItems: 50,
-			itemsPerPage: 10,
-		} as const;
+	const defaultProps = {
+		currentPage: 1,
+		totalPages: 5,
+		onPageChange: vi.fn(),
+		totalItems: 50,
+		itemsPerPage: 10,
+	} as const;
 
 	beforeEach(() => {
 		vi.clearAllMocks();

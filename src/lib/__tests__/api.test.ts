@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getReviews, toggleApprove } from '../api';
 
-// Mock fetch globally
-global.fetch = vi.fn();
+// Mock fetch globally (works in browser and node environments)
+globalThis.fetch = vi.fn() as unknown as typeof fetch;
+const fetchMock = vi.mocked(globalThis.fetch);
 
 describe('API utilities', () => {
 	beforeEach(() => {
@@ -40,28 +41,28 @@ describe('API utilities', () => {
 				},
 			};
 
-			(global.fetch as any).mockResolvedValueOnce({
-				ok: true,
-				json: async () => mockResponse,
-			});
+			fetchMock.mockResolvedValueOnce(
+				new Response(JSON.stringify(mockResponse), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				})
+			);
 
 			const result = await getReviews();
 			expect(result).toEqual(mockResponse);
-			expect(global.fetch).toHaveBeenCalledWith('/api/reviews');
+			expect(fetchMock).toHaveBeenCalledWith('/api/reviews');
 		});
 
 		it('should handle fetch errors', async () => {
-			(global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+			fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
 			await expect(getReviews()).rejects.toThrow('Network error');
 		});
 
 		it('should handle non-ok responses', async () => {
-			(global.fetch as any).mockResolvedValueOnce({
-				ok: false,
-				status: 500,
-				statusText: 'Internal Server Error',
-			});
+			fetchMock.mockResolvedValueOnce(
+				new Response('', { status: 500, statusText: 'Internal Server Error' })
+			);
 
 			await expect(getReviews()).rejects.toThrow(
 				'HTTP 500: Internal Server Error'
@@ -72,36 +73,33 @@ describe('API utilities', () => {
 	describe('toggleApprove', () => {
 		it('should toggle review approval successfully', async () => {
 			const mockResponse = { success: true };
-			(global.fetch as any).mockResolvedValueOnce({
-				ok: true,
-				json: async () => mockResponse,
-			});
+			fetchMock.mockResolvedValueOnce(
+				new Response(JSON.stringify(mockResponse), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				})
+			);
 
 			const result = await toggleApprove('review-1');
 			expect(result).toEqual(mockResponse);
-			expect(global.fetch).toHaveBeenCalledWith(
-				'/api/reviews/review-1/approve',
-				{
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-				}
-			);
+			expect(fetchMock).toHaveBeenCalledWith('/api/reviews/review-1/approve', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			});
 		});
 
 		it('should handle fetch errors', async () => {
-			(global.fetch as any).mockRejectedValueOnce(new Error('Network error'));
+			fetchMock.mockRejectedValueOnce(new Error('Network error'));
 
 			await expect(toggleApprove('review-1')).rejects.toThrow('Network error');
 		});
 
 		it('should handle non-ok responses', async () => {
-			(global.fetch as any).mockResolvedValueOnce({
-				ok: false,
-				status: 404,
-				statusText: 'Not Found',
-			});
+			fetchMock.mockResolvedValueOnce(
+				new Response('', { status: 404, statusText: 'Not Found' })
+			);
 
 			await expect(toggleApprove('review-1')).rejects.toThrow(
 				'HTTP 404: Not Found'
